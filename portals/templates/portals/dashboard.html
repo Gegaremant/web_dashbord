@@ -65,7 +65,7 @@
                             {% if portal.favicon %}
                             <img src="{{ portal.favicon.url }}" alt="{{ portal.title }}" class="portal-favicon">
                             {% else %}
-                            <div class="portal-favicon-placeholder">🌐</div>
+                            <img src="/static/img/default_favicon.png" alt="{{ portal.title }}" class="portal-favicon">
                             {% endif %}
                         </div>
 
@@ -138,8 +138,7 @@
 
                 <div class="form-group">
                     <label for="portalUrl">URL</label>
-                    <input type="url" id="portalUrl" name="url" class="form-input" placeholder="https://example.com"
-                        required>
+                    <input type="text" id="portalUrl" name="url" class="form-input" placeholder="example.com" required>
                 </div>
 
                 <div class="form-group">
