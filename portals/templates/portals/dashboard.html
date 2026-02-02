@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Web Dashboard</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">🌐</div>
+                    <span class="logo-text">WEB DASHBOARD</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="{% url 'portals:dashboard' %}" class="nav-item active">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-text">Dashboard</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar">{{ request.user.username|slice:":1"|upper }}</div>
+                    <div class="user-details">
+                        <div class="user-name">{{ request.user.username }}</div>
+                        <a href="{% url 'accounts:logout' %}" class="logout-link">Выйти</a>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="page-header">
+                <div class="header-content">
+                    <div class="header-title">
+                        <h1>Мои Порталы</h1>
+                        <p class="subtitle">Управление веб-порталами</p>
+                    </div>
+                    <button class="btn-add-portal" id="addPortalBtn">
+                        <span class="btn-icon">+</span>
+                        <span>Добавить портал</span>
+                    </button>
+                </div>
+            </header>
+
+            <div class="portals-grid" id="portalsGrid">
+                {% for portal in portals %}
+                <div class="portal-card" data-portal-id="{{ portal.id }}" data-portal-url="{{ portal.url }}"
+                    data-portal-title="{{ portal.title }}" data-portal-description="{{ portal.description }}">
+                    <div class="portal-drag-handle">
+                        <span class="drag-icon">⋮⋮</span>
+                    </div>
+
+                    <a href="{{ portal.url }}" target="_blank" class="portal-link" rel="noopener noreferrer">
+                        <div class="portal-preview">
+                            {% if portal.favicon %}
+                            <img src="{{ portal.favicon.url }}" alt="{{ portal.title }}" class="portal-favicon">
+                            {% else %}
+                            <div class="portal-favicon-placeholder">🌐</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="portal-info">
+                            <h3 class="portal-title">{{ portal.title }}</h3>
+                            {% if portal.description %}
+                            <p class="portal-description">{{ portal.description|truncatewords:10 }}</p>
+                            {% endif %}
+                            <div class="portal-url">{{ portal.url|truncatechars:40 }}</div>
+                        </div>
+                    </a>
+
+                    <div class="portal-footer">
+                        <div class="portal-status">
+                            <span class="status-indicator status-loading" data-portal-id="{{ portal.id }}"></span>
+                            <span class="status-text">Проверка...</span>
+                        </div>
+
+                        <div class="portal-actions">
+                            <button type="button" class="btn-icon-action edit-portal" data-portal-id="{{ portal.id }}"
+                                title="Редактировать">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                </svg>
+                            </button>
+                            <button type="button" class="btn-icon-action delete-portal" data-portal-id="{{ portal.id }}"
+                                title="Удалить">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                    <path
+                                        d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2">
+                                    </path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="empty-state">
+                    <div class="empty-icon">📦</div>
+                    <h2>Нет порталов</h2>
+                    <p>Добавьте свой первый портал, чтобы начать</p>
+                    <button class="btn-add-portal-empty">
+                        <span>+ Добавить портал</span>
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal for Add/Edit Portal -->
+    <div class="modal" id="portalModal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Добавить портал</h2>
+                <button class="modal-close" id="closeModal">&times;</button>
+            </div>
+
+            <form id="portalForm">
+                <div class="form-group">
+                    <label for="portalTitle">Название</label>
+                    <input type="text" id="portalTitle" name="title" class="form-input" placeholder="Название портала"
+                        required>
+                </div>
+
+                <div class="form-group">
+                    <label for="portalUrl">URL</label>
+                    <input type="url" id="portalUrl" name="url" class="form-input" placeholder="https://example.com"
+                        required>
+                </div>
+
+                <div class="form-group">
+                    <label for="portalDescription">Описание</label>
+                    <textarea id="portalDescription" name="description" class="form-textarea"
+                        placeholder="Описание (необязательно)" rows="3"></textarea>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" id="cancelBtn">Отмена</button>
+                    <button type="submit" class="btn-primary">
+                        <span id="submitBtnText">Добавить</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for Delete Confirmation -->
+    <div class="modal" id="deleteModal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content modal-content-small">
+            <div class="modal-header">
+                <h2>Удалить портал?</h2>
+                <button class="modal-close" id="closeDeleteModal">&times;</button>
+            </div>
+
+            <div class="delete-modal-body">
+                <p>Вы уверены, что хотите удалить портал <strong id="deletePortalName"></strong>?</p>
+                <p class="delete-warning">Это действие нельзя отменить.</p>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" id="cancelDeleteBtn">Отмена</button>
+                <button type="button" class="btn-danger" id="confirmDeleteBtn">Удалить</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <script src="/static/js/dashboard.js"></script>
+</body>
+
+</html>
