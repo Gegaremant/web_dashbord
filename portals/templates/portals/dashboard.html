@@ -4,54 +4,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Web Dashboard</title>
+    <title>Web Dashboard</title>
     <link rel="stylesheet" href="/static/css/dashboard.css">
 </head>
 
 <body>
     <div class="app-container">
-        <!-- Sidebar -->
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <div class="logo">
-                    <div class="logo-icon">🌐</div>
-                    <span class="logo-text">WEB DASHBOARD</span>
-                </div>
+        <!-- Header -->
+        <header class="top-header">
+            <div class="header-left"></div>
+            <div class="header-center">
+                <button class="btn-add-portal" id="addPortalBtn">
+                    <span class="btn-icon">+</span>
+                    <span>Добавить портал</span>
+                </button>
             </div>
-
-            <nav class="sidebar-nav">
-                <a href="{% url 'portals:dashboard' %}" class="nav-item active">
-                    <span class="nav-icon">📊</span>
-                    <span class="nav-text">Dashboard</span>
-                </a>
-            </nav>
-
-            <div class="sidebar-footer">
+            <div class="header-right">
                 <div class="user-info">
                     <div class="user-avatar">{{ request.user.username|slice:":1"|upper }}</div>
                     <div class="user-details">
                         <div class="user-name">{{ request.user.username }}</div>
-                        <a href="{% url 'accounts:logout' %}" class="logout-link">Выйти</a>
+                        <form action="{% url 'accounts:logout' %}" method="post" style="display: inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="logout-link">Выйти</button>
+                        </form>
                     </div>
                 </div>
             </div>
-        </aside>
+        </header>
 
         <!-- Main Content -->
         <main class="main-content">
-            <header class="page-header">
-                <div class="header-content">
-                    <div class="header-title">
-                        <h1>Мои Порталы</h1>
-                        <p class="subtitle">Управление веб-порталами</p>
-                    </div>
-                    <button class="btn-add-portal" id="addPortalBtn">
-                        <span class="btn-icon">+</span>
-                        <span>Добавить портал</span>
-                    </button>
-                </div>
-            </header>
-
             <div class="portals-grid" id="portalsGrid">
                 {% for portal in portals %}
                 <div class="portal-card" data-portal-id="{{ portal.id }}" data-portal-url="{{ portal.url }}"
@@ -65,7 +48,7 @@
                             {% if portal.favicon %}
                             <img src="{{ portal.favicon.url }}" alt="{{ portal.title }}" class="portal-favicon">
                             {% else %}
-                            <img src="/static/img/default_favicon.png" alt="{{ portal.title }}" class="portal-favicon">
+                            <img src="/static/img/default_favicon.jpg" alt="{{ portal.title }}" class="portal-favicon">
                             {% endif %}
                         </div>
 

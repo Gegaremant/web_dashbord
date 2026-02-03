@@ -100,6 +100,13 @@ def portal_delete(request, portal_id):
     portal = get_object_or_404(Portal, id=portal_id, user=request.user)
     
     try:
+        # Удаляем файл favicon если он существует
+        if portal.favicon:
+            try:
+                portal.favicon.delete(save=False)
+            except Exception:
+                pass  # Игнорируем ошибки удаления файла
+        
         portal.delete()
         return JsonResponse({'success': True})
     except Exception as e:
