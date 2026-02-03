@@ -1,18 +1,39 @@
-from django.shortcuts import render, redirect, get_object_or_404
+"""
+Модуль представлений (views) для приложения порталов.
+Содержит AJAX-эндпоинты для CRUD-операций с порталами
+и проверки их доступности.
+"""
+
+# Функции для рендеринга шаблонов и получения объектов
+from django.shortcuts import render, get_object_or_404
+
+# Декоратор для проверки авторизации пользователя
 from django.contrib.auth.decorators import login_required
+
+# Класс для возврата JSON-ответов
 from django.http import JsonResponse
+
+# Декоратор для ограничения HTTP-методов
 from django.views.decorators.http import require_http_methods
-from django.views.decorators.csrf import csrf_exempt
+
+# Модуль для работы с JSON-данными
 import json
 
+# Модели порталов и проверок доступности
 from .models import Portal, PortalAvailability
-from .forms import PortalForm
+
+# Сервисные функции для работы с порталами
 from .services import fetch_favicon, check_portal_availability, get_availability_stats
 
 
 @login_required
 def dashboard(request):
-    """Главная страница дашборда"""
+    """
+    Главная страница дашборда.
+    
+    Отображает все порталы текущего пользователя,
+    отсортированные по позиции и дате создания.
+    """
     portals = Portal.objects.filter(user=request.user).order_by('position', '-created_at')
     return render(request, 'portals/dashboard.html', {
         'portals': portals
@@ -22,7 +43,14 @@ def dashboard(request):
 @login_required
 @require_http_methods(["POST"])
 def portal_create(request):
-    """Создание нового портала (AJAX)"""
+    """
+    Создание нового портала (AJAX-эндпоинт).
+    
+    Принимает JSON с данными портала, создает запись в БД,
+    загружает favicon и выполняет первую проверку доступности.
+    
+    Возвращает JSON с данными созданного портала.
+    """
     try:
         data = json.loads(request.body)
         
@@ -34,12 +62,12 @@ def portal_create(request):
             position=Portal.objects.filter(user=request.user).count()
         )
         
-        # Попытка загрузить favicon
+        # Попытка загрузить favicon с сайта
         favicon_file = fetch_favicon(portal.url)
         if favicon_file:
             portal.favicon.save(f'favicon_{portal.id}.png', favicon_file, save=True)
         
-        # Первая проверка доступности
+        # Первая проверка доступности портала
         check_portal_availability(portal)
         
         return JsonResponse({
@@ -60,7 +88,14 @@ def portal_create(request):
 @login_required
 @require_http_methods(["POST"])
 def portal_update(request, portal_id):
-    """Обновление портала (AJAX)"""
+    """
+    Обновление существующего портала (AJAX-эндпоинт).
+    
+    Принимает JSON с новыми данными портала.
+    Если URL изменился - загружает новый favicon.
+    
+    Возвращает JSON с обновленными данными портала.
+    """
     portal = get_object_or_404(Portal, id=portal_id, user=request.user)
     
     try:
@@ -96,7 +131,12 @@ def portal_update(request, portal_id):
 @login_required
 @require_http_methods(["POST"])
 def portal_delete(request, portal_id):
-    """Удаление портала (AJAX)"""
+    """
+    Удаление портала (AJAX-эндпоинт).
+    
+    Удаляет файл favicon и запись портала из БД.
+    Вместе с порталом удаляются все связанные проверки доступности.
+    """
     portal = get_object_or_404(Portal, id=portal_id, user=request.user)
     
     try:
@@ -116,7 +156,12 @@ def portal_delete(request, portal_id):
 @login_required
 @require_http_methods(["POST"])
 def portal_reorder(request):
-    """Обновление порядка порталов после drag-and-drop (AJAX)"""
+    """
+    Обновление порядка порталов после drag-and-drop (AJAX-эндпоинт).
+    
+    Принимает JSON со списком ID порталов в новом порядке
+    и обновляет поле position для каждого.
+    """
     try:
         data = json.loads(request.body)
         portal_ids = data.get('portal_ids', [])
@@ -131,7 +176,12 @@ def portal_reorder(request):
 
 @login_required
 def portal_availability(request, portal_id):
-    """Получение данных о доступности портала (JSON API)"""
+    """
+    Получение статистики доступности портала (JSON API).
+    
+    Возвращает процент доступности, среднее время ответа
+    и данные для построения графика за указанный период.
+    """
     portal = get_object_or_404(Portal, id=portal_id, user=request.user)
     
     days = int(request.GET.get('days', 7))
@@ -148,7 +198,12 @@ def portal_availability(request, portal_id):
 @login_required
 @require_http_methods(["POST"])
 def portal_check_now(request, portal_id):
-    """Проверить доступность портала прямо сейчас (AJAX)"""
+    """
+    Немедленная проверка доступности портала (AJAX-эндпоинт).
+    
+    Выполняет HTTP-запрос к порталу и сохраняет результат.
+    Используется для ручной проверки по запросу пользователя.
+    """
     portal = get_object_or_404(Portal, id=portal_id, user=request.user)
     
     result = check_portal_availability(portal)

@@ -1,0 +1,51 @@
+# ============================================================================
+# Docker Compose для Web Dashboard
+# Запуск: docker-compose up -d
+# ============================================================================
+
+version: '3.8'
+
+services:
+  web:
+    # Сборка из текущей директории
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    # Имя контейнера
+    container_name: web_dashboard
+
+    # Порт для доступа
+    ports:
+      - "4213:4213"
+
+    # Переменные окружения
+    environment:
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-super-secret-key-change-in-production}
+      - DJANGO_SETTINGS_MODULE=web_dashboard.settings_prod
+
+    # Монтирование volumes для persistency данных
+    volumes:
+      # База данных SQLite
+      - ./data:/app/data
+      # Медиа файлы (favicon и т.д.)
+      - ./media:/app/media
+
+    # Политика перезапуска
+    restart: unless-stopped
+
+    # Лимиты ресурсов
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+    # Healthcheck
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4213/accounts/login/" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

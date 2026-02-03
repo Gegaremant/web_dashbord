@@ -1,31 +1,52 @@
-"""Сервисы для работы с порталами"""
+"""
+Модуль сервисов для работы с порталами.
+Содержит функции для загрузки favicon, проверки доступности
+и получения статистики.
+"""
+
+# Библиотека для выполнения HTTP-запросов
 import requests
+
+# Функция для разбора URL на компоненты
 from urllib.parse import urlparse
+
+# Класс для создания файлового объекта из байтов
 from django.core.files.base import ContentFile
-from io import BytesIO
 
 
 def get_domain_from_url(url):
-    """Извлекает домен из URL"""
+    """
+    Извлекает базовый домен из полного URL.
+    
+    Пример: https://example.com/page -> https://example.com
+    """
     parsed = urlparse(url)
     return f"{parsed.scheme}://{parsed.netloc}"
 
 
 def fetch_favicon(url):
     """
-    Загружает favicon для указанного URL
-    Возвращает ContentFile или None
+    Загружает favicon для указанного URL сайта.
+    
+    Пробует несколько источников:
+    1. Google Favicon API (самый надежный)
+    2. Прямые пути к favicon на сайте
+    
+    Возвращает ContentFile с изображением или None если не удалось загрузить.
     """
     domain = get_domain_from_url(url)
     
-    # PNG and ICO magic bytes for validation
-    PNG_MAGIC = b'\x89PNG'
-    ICO_MAGIC = b'\x00\x00\x01\x00'
-    GIF_MAGIC = b'GIF'
-    JPEG_MAGIC = b'\xff\xd8\xff'
+    # Магические байты для определения типа изображения
+    PNG_MAGIC = b'\x89PNG'      # PNG файлы начинаются с этих байт
+    ICO_MAGIC = b'\x00\x00\x01\x00'  # ICO файлы
+    GIF_MAGIC = b'GIF'          # GIF файлы
+    JPEG_MAGIC = b'\xff\xd8\xff'    # JPEG файлы
     
     def is_valid_image(content):
-        """Check if content starts with valid image magic bytes"""
+        """
+        Проверяет, является ли содержимое валидным изображением
+        по магическим байтам в начале файла.
+        """
         if len(content) < 4:
             return False
         return (
@@ -35,11 +56,13 @@ def fetch_favicon(url):
             content[:3] == JPEG_MAGIC
         )
     
-    # Пробуем несколько вариантов получения favicon
-    # Google's favicon service is most reliable, so try it first
+    # Список URL для попытки загрузки favicon
     favicon_urls = [
-        f"https://www.google.com/s2/favicons?domain={urlparse(url).netloc}&sz=128",  # Google favicon service
-        f"https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url={url}&size=128",  # Alternative Google service
+        # Google Favicon API - самый надежный источник
+        f"https://www.google.com/s2/favicons?domain={urlparse(url).netloc}&sz=128",
+        # Альтернативный Google сервис
+        f"https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url={url}&size=128",
+        # Прямые пути на сайте
         f"{domain}/favicon.ico",
         f"{domain}/favicon.png",
         f"{domain}/apple-touch-icon.png",
@@ -54,18 +77,18 @@ def fetch_favicon(url):
                 allow_redirects=True
             )
             
+            # Проверяем успешность запроса и минимальный размер
             if response.status_code == 200 and len(response.content) > 100:
-                # Validate that this is actually an image
                 content_type = response.headers.get('content-type', '').lower()
                 
-                # Check content-type OR magic bytes
+                # Проверяем тип контента или магические байты
                 is_image_type = 'image' in content_type
                 has_valid_magic = is_valid_image(response.content)
                 
                 if is_image_type or has_valid_magic:
                     return ContentFile(response.content, name='favicon.png')
                     
-        except Exception as e:
+        except Exception:
             continue
     
     return None
@@ -73,9 +96,14 @@ def fetch_favicon(url):
 
 def check_portal_availability(portal):
     """
-    Проверяет доступность портала
-    Возвращает словарь с результатами проверки
+    Проверяет доступность портала выполнением HTTP-запроса.
+    
+    Сохраняет результат проверки в БД и возвращает словарь:
+    - is_available: доступен ли портал
+    - response_time: время ответа в мс
+    - status_code: HTTP код ответа
     """
+    # Импортируем модель здесь для избежания циклических импортов
     from .models import PortalAvailability
     
     try:
@@ -86,10 +114,12 @@ def check_portal_availability(portal):
             headers={'User-Agent': 'Mozilla/5.0'}
         )
         
+        # Считаем доступным если статус меньше 500 (серверных ошибок)
         is_available = response.status_code < 500
         response_time = response.elapsed.total_seconds() * 1000  # в миллисекундах
         
-        availability = PortalAvailability.objects.create(
+        # Сохраняем результат проверки в БД
+        PortalAvailability.objects.create(
             portal=portal,
             is_available=is_available,
             response_time=round(response_time, 2),
@@ -103,8 +133,8 @@ def check_portal_availability(portal):
             'status_code': response.status_code
         }
     except Exception as e:
-        # Портал недоступен
-        availability = PortalAvailability.objects.create(
+        # Портал недоступен (таймаут, ошибка DNS и т.д.)
+        PortalAvailability.objects.create(
             portal=portal,
             is_available=False,
             response_time=None,
@@ -122,19 +152,28 @@ def check_portal_availability(portal):
 
 def get_availability_stats(portal, days=7):
     """
-    Получает статистику доступности портала за указанное количество дней
+    Получает статистику доступности портала за указанный период.
+    
+    Возвращает словарь с:
+    - uptime_percentage: процент времени доступности
+    - avg_response_time: среднее время ответа
+    - checks_count: общее количество проверок
+    - chart_data: данные для построения графика
     """
+    # Импорты для работы с датами
     from django.utils import timezone
     from datetime import timedelta
     
     end_date = timezone.now()
     start_date = end_date - timedelta(days=days)
     
+    # Получаем все проверки за период
     checks = portal.availability_checks.filter(
         timestamp__gte=start_date,
         timestamp__lte=end_date
     ).order_by('timestamp')
     
+    # Если проверок нет - возвращаем пустую статистику
     if not checks.exists():
         return {
             'uptime_percentage': None,
@@ -145,15 +184,16 @@ def get_availability_stats(portal, days=7):
             'chart_data': []
         }
     
+    # Подсчет успешных и неуспешных проверок
     available_count = checks.filter(is_available=True).count()
     unavailable_count = checks.filter(is_available=False).count()
     total_count = checks.count()
     
-    # Вычисляем среднее время ответа
+    # Вычисляем среднее время ответа (только для успешных проверок)
     response_times = [c.response_time for c in checks if c.response_time is not None]
     avg_response_time = sum(response_times) / len(response_times) if response_times else None
     
-    # Данные для графика (группируем по дням)
+    # Данные для графика
     chart_data = []
     for check in checks:
         chart_data.append({

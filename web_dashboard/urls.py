@@ -1,32 +1,38 @@
 """
-URL configuration for web_dashboard project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/5.0/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
+Главный конфигурационный файл URL-маршрутов проекта web_dashboard.
+Определяет корневые пути и подключает приложения.
 """
+
+# Модуль администрирования Django
 from django.contrib import admin
+
+# Функции для создания URL-маршрутов и подключения приложений
 from django.urls import path, include
+
+# Модуль настроек Django
 from django.conf import settings
+
+# Функция для раздачи медиа-файлов в режиме разработки
 from django.conf.urls.static import static
+
+# Функция для редиректа
 from django.shortcuts import redirect
 
+
 urlpatterns = [
+    # Админ-панель Django
     path('admin/', admin.site.urls),
+    
+    # Редирект с главной страницы на дашборд
     path('', lambda request: redirect('portals:dashboard')),
+    
+    # Маршруты приложения порталов
     path('dashboard/', include('portals.urls')),
+    
+    # Маршруты приложения аккаунтов (авторизация)
     path('accounts/', include('accounts.urls')),
 ]
 
-# Serve media files in development
+# Раздача медиа-файлов в режиме разработки (favicon и т.д.)
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

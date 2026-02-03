@@ -1,0 +1,51 @@
+# ============================================================================
+# .dockerignore - файлы, исключаемые из Docker-образа
+# ============================================================================
+
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Database (используем volume)
+*.sqlite3
+db.sqlite3
+data/
+
+# Media (используем volume)
+media/
+
+# Тесты и документация
+tests/
+*.test.py
+htmlcov/
+.coverage
+*.md
+
+# Docker
+Dockerfile
+docker-compose.yml
+docker-compose*.yml
+
+# Прочее
+*.log
+*.pot
+*.pyc
+.pytest_cache/
